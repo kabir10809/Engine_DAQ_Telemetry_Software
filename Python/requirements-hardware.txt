@@ -1,0 +1,8 @@
+# Installed one at a time. If one fails on a computer, only its driver is disabled.
+pyserial>=3.5
+python-can>=4.4
+pymodbus>=3.7
+PyVISA>=1.14
+PyVISA-py>=0.7
+nidaqmx>=1.0
+asyncua>=1.1

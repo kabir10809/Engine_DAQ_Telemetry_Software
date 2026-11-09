@@ -1,0 +1,38 @@
+# Copy to plugins/drivers/<yourdevice>/<your_name>_driver.py, rename the class and
+# fill in the bodies. No core code changes are needed: restart and it is listed.
+# Then add a row to config/hardware_compatibility.py. The test suite fails
+# until you do. Full guide: docs/DRIVER_GUIDE.md
+from edaq.hw.driver import Driver, empty_status
+
+
+class TemplateDriver(Driver):
+    def __init__(self):
+        super().__init__()
+        self._link = None
+
+    @staticmethod
+    def manifest():
+        return {"id": "template", "name": "My instrument", "version": "1.0.0", "interfaces": ["Vendor adapter"], "platforms": ["any"],
+                "requires": [], "configSchema": [{"name": "address", "label": "Address", "type": "string", "required": True, "help": ""}]}
+
+    def connect(self):
+        pass  # open the link using self.settings; raise if it fails
+
+    def identify(self):
+        # Report only what the device actually told you, and how you know.
+        return {"vendor": "", "model": "", "serial": "", "firmware": "", "evidence": ""}
+
+    def discover_channels(self):
+        return []
+
+    def read(self, t_now):
+        return []  # must return quickly: all devices share one acquisition loop
+
+    def status(self):
+        # Set instrument to "ok" only on positive evidence from the device.
+        st = empty_status()
+        st["connected"] = self._link is not None
+        return st
+
+    def disconnect(self):
+        self._link = None

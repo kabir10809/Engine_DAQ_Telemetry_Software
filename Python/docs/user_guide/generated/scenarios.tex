@@ -1,0 +1,25 @@
+Normal operation & \texttt{normal} & GREEN & None \\
+Single-sample spike & \texttt{spike} & YELLOW & Measurement anomaly \\
+Isolated reading beyond critical limit & \texttt{spike\_past\_critical} & YELLOW & Measurement anomaly \\
+Frozen sensor & \texttt{frozen} & YELLOW & Measurement anomaly \\
+Excessive noise & \texttt{noisy} & YELLOW & Measurement anomaly \\
+Below sensor range (open circuit) & \texttt{under\_range} & YELLOW & Measurement anomaly \\
+Sensor drift & \texttt{drift} & YELLOW & Measurement anomaly \\
+Non-critical channel stops & \texttt{dropout} & YELLOW & Measurement anomaly \\
+Abnormal sampling intervals & \texttt{jitter} & YELLOW & Measurement anomaly \\
+Torque while not turning & \texttt{implausible} & YELLOW & Measurement anomaly \\
+Raw signal outside calibrated span & \texttt{cal\_span} & YELLOW & Measurement anomaly \\
+Timestamp runs backwards & \texttt{time\_back} & YELLOW & Measurement anomaly \\
+Communication packet errors & \texttt{packets} & YELLOW & Communication fault \\
+Short communication dropout & \texttt{comm\_blip} & YELLOW & Communication fault \\
+Instrument degraded & \texttt{instrument\_degraded} & YELLOW & Instrument fault \\
+Sustained loss of communication & \texttt{comm\_loss} & RED & Communication fault \\
+Critical sensor stops reporting & \texttt{critical\_sensor\_lost} & RED & Communication fault \\
+DAQ hardware failure & \texttt{daq\_failure} & RED & Instrument fault \\
+Hardware-reported overload & \texttt{overload} & RED & Instrument fault \\
+Dynamometer fault signal & \texttt{dyno\_fault} & RED & Confirmed equipment fault \\
+Confirmed cooling system failure & \texttt{cooling\_failure} & RED & Confirmed equipment fault \\
+Critical temperature exceeded & \texttt{over\_temp} & RED & Critical safety alarm \\
+Critical pressure limit & \texttt{low\_oil\_press} & RED & Critical safety alarm \\
+Equipment interlock activated & \texttt{interlock} & RED & Critical safety alarm \\
+\bottomrule

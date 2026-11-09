@@ -1,0 +1,458 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[utf8]{inputenc}
+\usepackage[margin=24mm]{geometry}
+\usepackage{amsmath,graphicx,booktabs,longtable,tabularx,array,float,xcolor,enumitem,parskip,microtype,fancyhdr}
+\usepackage{listings}
+\usepackage[hidelinks]{hyperref}
+\input{generated/version.tex}
+
+\definecolor{rigred}{RGB}{179,38,30}
+\definecolor{rigyellow}{RGB}{249,199,79}
+\definecolor{riggreen}{RGB}{46,140,61}
+\definecolor{code}{RGB}{242,242,242}
+\lstset{basicstyle=\ttfamily\small,backgroundcolor=\color{code},frame=none,breaklines=true,columns=fullflexible,keepspaces=true,showstringspaces=false}
+\pagestyle{fancy}\fancyhf{}\lhead{Engine DAQ Telemetry}\rhead{User Guide}\cfoot{\thepage}
+\setlist{nosep,leftmargin=*}
+\setlength{\LTpre}{6pt}\setlength{\LTpost}{6pt}
+
+\newcommand{\ui}[1]{\textbf{#1}}
+\newcommand{\key}[1]{\texttt{#1}}
+\newcommand{\state}[2]{\colorbox{#1}{\strut\textbf{#2}}}
+\newcommand{\shot}[2]{\begin{figure}[H]\centering\includegraphics[width=\linewidth]{figures/#1.png}\caption{#2}\end{figure}}
+\newcommand{\warnbox}[1]{\par\medskip\noindent\fcolorbox{rigred}{white}{\begin{minipage}{\dimexpr\linewidth-2\fboxsep-2\fboxrule}#1\end{minipage}}\par\medskip}
+\newcommand{\notebox}[1]{\par\medskip\noindent\fcolorbox{gray}{code}{\begin{minipage}{\dimexpr\linewidth-2\fboxsep-2\fboxrule}#1\end{minipage}}\par\medskip}
+
+\title{\textbf{Engine DAQ Telemetry}\\[4pt]\Large User Guide}
+\author{Python build, version \appversion}
+\date{}
+
+\begin{document}
+\maketitle
+\thispagestyle{empty}
+\warnbox{\textbf{Monitoring only.} This application reads data. It cannot stop, load or control the
+engine or dynamometer. It is not a safety system and does not replace the rig's independent
+protection, interlocks or emergency stop.}
+\notebox{\textbf{Hardware status.} Every driver for real hardware in this version has been tested
+against software endpoints at most. None has been validated on a physical instrument. Check a new
+device against a trusted reference before relying on its readings (Section~\ref{sec:matrix}).}
+\tableofcontents
+\newpage
+
+\section{Getting started}
+\subsection{Requirements}
+Python 3.10 or newer, on Windows, Linux or macOS. This version has been tested only on Linux with Python 3.14; Windows and macOS are supported by design but have not been run yet.
+Nothing else needs installing by hand, and MATLAB is not needed. Some instruments also need their maker's own driver software, such as NI-DAQmx.
+
+\subsection{Starting the application}
+On Windows, double-click \key{run.bat}. On Linux or macOS, run \key{./run.sh}. On any system, \key{python launch\_engine\_daq.py} does the same.
+
+The first run creates a private environment in \key{.venv}, installs everything the application needs there, and starts it. That needs internet access, a few minutes and about 1.3\,GB of disk. Later runs start straight away and work offline. Nothing is installed outside this folder. If the folder is copied to another computer, the environment rebuilds itself.
+
+All of your data is kept in \key{workspace/}, so backing up or moving that one folder takes it with you.
+
+The first launch loads a simulated engine rig, so you can try every feature with no hardware.
+
+\subsection{A five-minute tour}
+\begin{enumerate}
+\item Press \ui{Start monitoring}. The status bar turns green once data is flowing.
+\item Open \ui{Simulation}, select \emph{Single-sample spike} and press \ui{Inject selected}. A yellow banner appears.
+\item Select \emph{Critical temperature exceeded} and inject it. A red banner appears.
+\item Open \ui{Alarms}, select a row to read the diagnosis, and press \ui{Acknowledge}.
+\item Open \ui{Diagnostics} to see that health is reported per layer.
+\item Press \ui{Stop monitoring}.
+\end{enumerate}
+
+\section{The main window}
+\shot{dashboard}{Main window while monitoring a healthy simulated rig.}
+The top bar shows the overall state, the current setup, how long monitoring has been running and whether a recording is in progress, and holds the monitoring, recording and setup controls. Status columns in the tables use the same colours.
+Banners for active alarms appear below it and stay there until the alarms are dealt with.
+Clicking a banner opens the \ui{Alarms} page. Pages are chosen from the list on the left, and \ui{Light / dark} switches the colour theme.
+
+\begin{longtable}{@{}p{33mm}p{118mm}@{}}\toprule
+State & Meaning\\\midrule\endhead
+\state{riggreen}{\textcolor{white}{GREEN}} & Data is flowing and everything is within configured limits. It does \emph{not} certify that the equipment is healthy; the application only knows what its channels report.\\[3pt]
+\state{rigyellow}{YELLOW} & Something is suspicious: an anomalous measurement, a communication problem or a degraded instrument. Nothing has been confirmed about the equipment.\\[3pt]
+\state{rigred}{\textcolor{white}{RED}} & A verified equipment or instrument fault, loss of a critical sensor, or a configured critical limit.\\[3pt]
+\state{lightgray}{NO DATA} & Not monitoring, or no samples are arriving. Idle is never shown as green.\\\bottomrule
+\end{longtable}
+
+\begin{longtable}{@{}p{33mm}p{118mm}@{}}\toprule
+Page & Use it to\\\midrule\endhead
+Dashboard & Watch live values on layouts you design\\
+Devices & Find hardware, configure it and test connections\\
+Channels & Define what is measured and how it is validated\\
+Alarms & Read, acknowledge and export alarms\\
+Diagnostics & See communication, instrument, measurement and equipment health separately\\
+Engine & Enter geometry and manage compression ratio\\
+Data & Export recorded runs and import outside data\\
+Experiments & Define experiments, record runs and build reports\\
+Simulation & Rehearse faults on the simulated rig\\
+Compatibility & See and maintain what hardware is supported\\\bottomrule
+\end{longtable}
+
+\section{Connecting hardware}
+\subsection{Discovering devices}
+\shot{devices}{Devices page after a discovery scan.}
+\ui{Devices > Discover hardware} lists every candidate it can find. The \emph{Confidence} column says how much is really known:
+\begin{description}
+\item[\key{port\_only}] A port exists. What is attached to it, and what protocol it speaks, is unknown.
+\item[\key{device\_identified}] The interface or device named itself. That does not prove its data can be read correctly.
+\item[\key{protocol\_verified}] Valid data was received.
+\end{description}
+The \emph{Verdict} column is the compatibility matrix's position on that device. \key{unknown} means it
+is not in the matrix and has not been verified. The box at the bottom lists interfaces that
+could not be scanned on this computer, and why.
+
+\subsection{The configuration wizard}
+Select a candidate and press \ui{Configure selected}, or press \ui{Add device manually}.
+\begin{enumerate}
+\item Choose a driver. Drivers that cannot run on this computer are marked \emph{unavailable}.
+\item Enter a device id and fill in the settings. The form is built from what the driver needs.
+\item Fill in the channel table: which registers, fields or signals to read.
+\item Press \ui{Test connection} and read each step of the result.
+\item Press \ui{Save profile} to reuse this configuration, then \ui{Add to setup}.
+\end{enumerate}
+A passing connection test shows that the link works and frames decode. It does not show that
+the measurements are accurate.
+
+Several devices can be acquired from at once, and a fault on one does not interrupt the others.
+A lost device is retried automatically with increasing delays, from 1\,s up to 30\,s. A device that
+sends nothing for 10\,s is treated as lost.
+
+\subsection{Driver settings}
+\begin{longtable}{@{}p{27mm}p{124mm}@{}}\toprule
+Driver & Channel table\\\midrule\endhead
+\key{stream} & \key{hw}: your name for the channel. \key{field}: column number (\emph{delimited}), key (\emph{keyvalue}) or JSON name (\emph{json}). Set the transport, terminator and frame format above the table. For polled instruments, enter a poll command.\\
+\key{modbus} & \key{hw}, \key{table} (\key{holdingregs}, \key{inputregs}, \key{coils}, \key{inputs}), \key{address}, \key{type} (\key{uint16}, \key{int16}, \key{uint32}, \key{int32}, \key{single}, \key{double}), \key{serverId}. Check the address offset against the device manual on first use.\\
+\key{can} & \key{hw}, \key{messageId}, \key{extended}, \key{startBit}, \key{length}, \key{byteOrder} (\key{intel} or \key{motorola}), \key{signed}, \key{scale}, \key{offset}. Set the python-can interface and channel above the table. Keep \emph{Listen only} on unless the bus needs acknowledgement from this node.\\
+\key{ni\_daqmx} & \key{hw}, \key{device}, \key{channel}, \key{measurement}, \key{rangeLow}, \key{rangeHigh}, \key{thermocoupleType}. Needs NI's driver software as well.\\
+\key{visa} & \key{hw}, \key{query}. Every query must end in \key{?}. Leave the error query enabled: it is what gives real evidence of instrument health.\\
+\key{opcua} & \key{hw}, \key{namespace}, \key{identifier}.\\\bottomrule
+\end{longtable}
+
+\subsection{Instruments with no driver}
+If the instrument has a vendor SDK, either write a small bridge in any language that prints one JSON
+object per line over TCP or UDP and read it with the \key{stream} driver, or add a driver plugin as
+described in \key{docs/DRIVER\_GUIDE.md}. Plugins need no change to the application.
+
+\section{The hardware compatibility matrix}\label{sec:matrix}
+\shot{compatibility}{Compatibility page, with live availability on this computer.}
+The matrix records what hardware works and exactly how far each claim has been checked.
+\begin{longtable}{@{}p{38mm}p{113mm}@{}}\toprule
+Status & Meaning\\\midrule\endhead
+\key{unsupported} & Known not to work, or deliberately excluded.\\
+\key{planned} & Intended; no driver yet.\\
+\key{implemented} & Driver written but never run against any endpoint.\\
+\key{simulated} & Software model only.\\
+\key{loopback\_verified} & Ran end to end against a software endpoint. Not tested on a physical instrument.\\
+\key{bench\_validated} & Verified on a physical instrument, with recorded evidence.\\
+\key{deprecated} & Still present, scheduled for removal.\\\bottomrule
+\end{longtable}
+
+\subsection{Current interface support}
+\begin{small}
+\begin{longtable}{@{}p{23mm}p{17mm}p{32mm}p{15mm}p{55mm}@{}}\toprule
+Interface & Driver & Status & Platforms & Notes\\\midrule\endhead
+\input{generated/interfaces.tex}
+\end{longtable}
+\end{small}
+
+\subsection{Adding your equipment}
+Keep this up to date as the lab changes, so that a sensor or DAQ swap is a matter of updating the record.
+\begin{enumerate}
+\item Press \ui{Add lab equipment} and describe the device.
+\item Configure and connect it, and compare its readings against a trusted reference.
+\item Select its row, press \ui{Record bench validation}, and enter the date, your name, firmware, driver version, evidence and result.
+\end{enumerate}
+A passing record is the only way a device reaches \key{bench\_validated}. If its driver later changes major version,
+the row is flagged for revalidation. \ui{Write matrix document} regenerates \key{docs/HARDWARE\_COMPATIBILITY.md}.
+
+\section{Measurement channels}
+\shot{channels}{Channels page. Each row is one user-defined measurement.}
+Nothing in the application is specific to engines. A channel is whatever you define it to be.
+Monitoring must be stopped to change channels. \ui{Add channel} and \ui{Edit selected} open the channel editor, which has four tabs.
+\ui{Import from device} creates channels for what a device reports.
+
+\shot{channel_editor}{Channel editor. Everything is set through fields, lists and tables.}
+
+\begin{longtable}{@{}p{38mm}p{113mm}@{}}\toprule
+Field & Meaning\\\midrule\endhead
+\multicolumn{2}{@{}l}{\textbf{General}}\\
+Identifier & Permanent name used in formulas and recorded data. Letters, digits and underscores. Cannot be changed later.\\
+Display name & Change it freely.\\
+Kind & \key{hardware}, \key{derived} (from a formula) or \key{manual} (entered by the operator).\\
+Role & \key{measurement}, \key{fault\_signal} (equipment reports a fault) or \key{interlock}.\\
+Sensor type, Equipment & Descriptive. Alarms use the equipment name to collect supporting measurements.\\
+Device, Hardware channel & Where the data comes from.\\
+Formula & For derived channels.\\
+Critical & Tick if losing this channel should be a red condition.\\
+\multicolumn{2}{@{}l}{\textbf{Measurement and limits}}\\
+Quantity, Unit, Raw signal unit & Physical quantity and units.\\
+Sample rate & Nominal rate. Used to check sampling intervals.\\
+Sensor range & The sensor's measurement range. Outside it, readings are flagged.\\
+Accuracy, Resolution & When known.\\
+Warning low and high & Yellow limits.\\
+Critical low and high & Red limits.\\
+Asserted level & Level treated as active, for fault signals and interlocks.\\\bottomrule
+\end{longtable}
+Leave a field blank if it does not apply. To add a unit, press \ui{Define unit}; conversion
+between different quantities is always refused.
+
+\subsection{Calibration}
+Raw values are always kept. Calibration produces the separate engineering value. On the \ui{Calibration} tab, choose a type:
+\begin{description}
+\item[linear] Enter gain and offset as \emph{Coefficients}, for example \key{2.5, -1.25}.
+\item[polynomial] Enter coefficients with the constant term first.
+\item[table] Fill in raw and value pairs. A table is never extrapolated.
+\end{description}
+Record the certificate, dates and who performed it. An overdue calibration, or a raw value
+outside the calibrated low and high, raises a yellow alarm.
+
+\subsection{Derived measurements}
+Set \ui{Kind} to \key{derived} and enter a \ui{Formula} using other channels' identifiers and setup parameters:
+\begin{lstlisting}
+2*pi*rpm*torque/60000
+if(brake_power>1, fuel_flow*1000/brake_power, 0)
+\end{lstlisting}
+\begin{tabular}{@{}ll@{}}
+Operators & \key{+ - * / \% \^{} < <= > >= == != \&\& || !}\\
+Functions & \key{sin cos tan asin acos atan atan2 sqrt abs exp log log10}\\
+ & \key{floor ceil round sign min max pow if clamp}\\
+Constants & \key{pi e}\\
+\end{tabular}
+
+A derived value is recalculated at loop rate from the newest input values, without interpolation.
+It is flagged if any input was flagged. Circular definitions are refused.
+
+\section{Alarms}
+\shot{alarms}{Alarms page with active conditions, details and history.}
+\subsection{The five classifications}
+\begin{longtable}{@{}p{38mm}p{16mm}p{97mm}@{}}\toprule
+Classification & Colour & Used for\\\midrule\endhead
+Measurement anomaly & Yellow & Suspicious data. Always yellow.\\
+Communication fault & Yellow or red & Link or packet problems. Red only for loss of a critical channel.\\
+Instrument fault & Yellow or red & What the instrument reports about itself. Red for a failure or overload.\\
+Confirmed equipment fault & Red & A dedicated fault signal from the equipment.\\
+Critical safety alarm & Red & A critical limit or an interlock.\\\bottomrule
+\end{longtable}
+A suspicious reading is never treated as a mechanical failure. The application refuses any rule that claims a
+confirmed equipment fault unless a dedicated fault signal is part of it.
+
+If a critical limit is breached by a reading that is also flagged as suspect, the alarm stays red and says so.
+The software cannot prove the sensor is wrong, so that decision is left to you.
+
+\subsection{Alarm lifecycle}
+\begin{enumerate}
+\item A condition must hold for its \emph{persistence} period to become an alarm. Limits default to 0.5\,s, so one bad sample does not reach red. Anything shorter is still recorded in the history as a \emph{transient}.
+\item An active alarm stays visible until acknowledged. \ui{Acknowledge} confirms that you have seen it; it does not clear it.
+\item Once the condition has been false for its \emph{clear delay}, the alarm counts as cleared.
+\item Red alarms latch: after they are acknowledged and the condition has cleared, press \ui{Reset latched}. Reset is refused while the condition is still true.
+\end{enumerate}
+Alarms cannot be shelved, disabled or suppressed. Each event is written to \key{workspace/logs/}, and to the
+run when recording. \ui{Export events} saves the history as CSV.
+
+\subsection{Reading an alarm}
+Select a row to see the reason, expected range, recommended action, affected equipment and the supporting
+measurements captured when the alarm activated.
+
+\section{Validation rules}
+Rules are set per channel. These are automatic:
+\begin{longtable}{@{}p{32mm}p{119mm}@{}}\toprule
+Rule & When it applies\\\midrule\endhead
+\key{range} & When a measurement range is set. Also catches non-numeric readings.\\
+\key{threshold} & When warning or critical limits are set.\\
+\key{timestamp} & Hardware channels. Time running backwards or in the future.\\
+\key{missing} & Hardware channels. Timeout is the larger of 1\,s and 10 sample periods.\\
+\key{missing} (critical) & Critical channels. Red after the larger of 2\,s and 20 sample periods.\\
+\key{calibrationCheck} & When a calibration is set.\\
+\key{faultSignal} & Channels with the \key{fault\_signal} or \key{interlock} role.\\\bottomrule
+\end{longtable}
+Add these on the \ui{Validation rules} tab of the channel editor, one row per rule, filling in only the columns that rule uses:
+\begin{longtable}{@{}p{20mm}p{50mm}p{81mm}@{}}\toprule
+Type & Parameters & Detects\\\midrule\endhead
+\key{roc} & \key{maxRate} & Unrealistic jumps between samples\\
+\key{stuck} & \key{windowS}, \key{tolerance} & Frozen readings. Use only on signals that always move.\\
+\key{noise} & \key{windowS}, \key{maxStd} & Excessive noise, ignoring slow trends\\
+\key{outlier} & \key{windowS}, \key{k}, \key{minScale} & Statistical outliers (Hampel test)\\
+\key{drift} & \key{windowS}, \key{maxSlope} & Sustained slope. A real warm-up looks identical, so use it on signals expected to hold steady.\\
+\key{interval} & \key{windowS}, \key{tolerance}, \key{maxFraction} & Abnormal sampling intervals\\\bottomrule
+\end{longtable}
+Any rule can also set a persistence, clear delay, severity and recommendation.
+Flagged samples remain in the data with their flags; nothing is removed.
+
+\subsection{Cross-channel rules}
+\ui{Channels > Cross-channel rules} defines checks that span channels, one row per rule. A rule fires while its condition is true, for example \key{rpm < 50 \&\& torque > 20} for torque reported while the engine is not turning. Use channel identifiers in the condition.
+
+\section{Diagnostics}
+\shot{diagnostics}{Diagnostics page: each kind of health is reported on its own.}
+A working link says nothing about whether the instrument or the rig is healthy, so each layer is reported independently.
+\begin{longtable}{@{}p{35mm}p{116mm}@{}}\toprule
+Layer & Reading it\\\midrule\endhead
+Communication & \key{ok}, \key{degraded}, \key{lost} or \key{offline}, with packet and reconnection counts.\\
+Instrument & \key{ok} only when the device gives real evidence. \key{not\_assessed} means it provides none.\\
+Measurement quality & \key{good}, \key{suspect} or \key{no\_data} per channel, with current flags.\\
+Equipment & \key{no\_fault\_reported} covers only what the wired signals observe. \key{not\_monitored} means no fault signals are configured.\\
+Application & Loop timing and errors, and plugins that failed to load.\\\bottomrule
+\end{longtable}
+
+\section{Dashboards}
+Dashboards are collections of pages, each laid out on a 12 by 8 grid.
+\begin{itemize}
+\item \ui{Add widget}: numeric, gauge, trend, XY, table, alarms or status lamps.
+\item \ui{Edit layout}: drag a block to move it, drag its corner handle to resize, and press \ui{Apply}.
+\item \ui{Add page} and \ui{Remove page}.
+\item Enter a name and press \ui{Save}. Pick a saved dashboard from the list at the top left.
+\end{itemize}
+Keep one dashboard per engine or experiment. Trends mark flagged samples with a red cross.
+Dashboards only display data, so changing one cannot affect acquisition.
+
+\section{Engine and compression ratio}
+\shot{engine}{Engine page with a measured compression ratio.}
+Enter the geometry you know and leave the rest blank. Press \ui{Apply} after changing anything.
+
+\subsection{Compression ratio source}
+You choose the source explicitly. The application never assumes an engine has variable compression.
+\begin{longtable}{@{}p{24mm}p{127mm}@{}}\toprule
+Source & Use when\\\midrule\endhead
+\key{fixed} & The engine has one ratio. Enter it as \emph{Nominal}. Shown as \emph{configured}.\\
+\key{measured} & A channel reports the actual ratio. Shown as \emph{measured}.\\
+\key{manual} & The operator adjusts it by hand. Press \ui{Enter manual CR} at each change; entries are stored with the run. Shown as \emph{manual}.\\
+\key{calculated} & Derived from bore, stroke and clearance volume. Shown as \emph{calculated}.\\
+\key{unknown} & None of the above.\\\bottomrule
+\end{longtable}
+Plots against time, speed, torque and brake power are available for measured channels. Press \ui{Load recorded run} to plot a saved run.
+
+\subsection{Calculations}
+Standard engine quantities are best set up as derived channels, as in the demo setup, so they are recorded with the run.
+\begin{align*}
+V_s &= \tfrac{\pi}{4}B^2S & CR &= \frac{V_s+V_c}{V_c}\\[2pt]
+P\,[\mathrm{kW}] &= \frac{2\pi N T}{60000} & \mathrm{BMEP} &= \frac{2\pi\, n_r T}{V_d}\\[2pt]
+\mathrm{BSFC}\,[\mathrm{g/kWh}] &= \frac{1000\,\dot m_f}{P} & \eta_b &= \frac{P}{\dot m_f\,\mathrm{LHV}}
+\end{align*}
+where $n_r$ is crank revolutions per cycle. For analysis across a recorded run, and comparison between
+compression ratios, use Python directly, from the private environment:
+\begin{lstlisting}[language=Python]
+from edaq.data.store import RunReader
+from edaq.rig import Geometry, analyze_run
+r = RunReader("workspace/runs/<run folder>")
+g = Geometry.from_dict({"boreMm": 86, "strokeMm": 86, "cylinders": 4})
+table = analyze_run(r, {"rpm": "rpm", "torque": "torque", "fuel": "fuel_flow"}, g, {"lhvMJkg": 42.5})
+\end{lstlisting}
+
+\section{Recording and data exchange}
+\ui{Quick record} captures to \key{workspace/runs/}. Each run stores a full copy of the configuration and calibration in force,
+plus the raw value, converted value and quality flags of every sample. A run interrupted by a crash remains readable.
+
+\subsection{Exporting}
+\shot{data}{Data page.}
+Press \ui{Refresh runs}, select a run and channels, set an optional time range, then choose content and format. Files are written to \key{workspace/exports/}.
+\begin{itemize}
+\item Data: CSV, TXT, XLSX, XLS, JSON, XML, MAT, HDF5, Parquet
+\item Figures: PDF, PNG, SVG, JPEG
+\end{itemize}
+Channels at different rates share a table with blanks where a channel has no sample at that instant. Nothing is resampled.
+XLSX and XLS have row limits; if a run exceeds them, the export is refused and you can choose a shorter range or another format.
+
+\subsection{Importing}
+Enter a path or press \ui{Browse}, then press \ui{Read columns}. Choose the time column and its kind, or give a sample rate
+if there is none. Edit the mapping table and press \ui{Import}. The source file's name, hash and original columns stay with the imported run.
+
+\section{Experiments and reports}
+\shot{experiments}{Experiments page.}
+An experiment describes what is being tested, independently of the hardware.
+\begin{enumerate}
+\item Enter a name and fill in the \ui{Engines}, \ui{Fuels}, \ui{Methods} and \ui{Parameters} tables, then press \ui{Create new}. To change an existing experiment, select it, edit it and press \ui{Save changes}.
+\item Start monitoring. Under \ui{Test run}, choose the engine, fuel and method, enter the operator and any test conditions, and press \ui{Start recording run}.
+\item Press \ui{Stop recording} at the end of the run. Repeat for further runs.
+\end{enumerate}
+Later edits to an experiment do not change runs already recorded.
+
+\subsection{Reports}
+Select a run under \ui{Report}. Each row of the sections table is one section of the report, in that order. Change a row's \ui{Section} to reorder them, and clear \ui{Use} to leave one out. Then press \ui{Build PDF report}.
+\begin{longtable}{@{}p{24mm}p{50mm}p{77mm}@{}}\toprule
+Section & Columns used & Content\\\midrule\endhead
+\key{summary} & & Identification and provenance\\
+\key{channels} & Channels & Channel and calibration table\\
+\key{statistics} & Channels, Units & Mean, min, max, standard deviation, counts\\
+\key{alarms} & & Alarm events\\
+\key{plot} & Channels, Heading & Time plots\\
+\key{text} & Heading, Text & Free text\\\bottomrule
+\end{longtable}
+List channels by identifier, separated by commas. Blank means all channels. Write display units as, for example, \key{oil\_press=psi}.
+\ui{From} and \ui{To} limit the report to part of the run. Enter a name and press \ui{Save} to keep a report layout, and choose it from the \ui{Load} list to reuse it.
+
+\section{Simulation}
+\shot{simulation}{Simulation page.}
+With the simulated device running, select a scenario and press \ui{Inject selected}. Use this to train operators and to
+check your thresholds. \ui{Clear injected faults} removes faults, though latched alarms still need acknowledging.
+Each of these scenarios is part of the automated test suite, against the state and classification shown here.
+
+\begin{small}
+\begin{longtable}{@{}p{62mm}p{36mm}p{14mm}p{36mm}@{}}\toprule
+Scenario & Id & State & Classification\\\midrule\endhead
+\input{generated/scenarios.tex}
+\end{longtable}
+\end{small}
+
+\section{Saving setups}\label{sec:setups}
+A setup holds devices, channels, rules, parameters and engine data. You can keep as many as you need, for example one for
+each engine, rig or experiment.
+
+\ui{Save setup} and \ui{Load setup} both open the setup library, which lists every saved setup.
+\begin{description}
+\item[Save] Enter a name and press \ui{Save}. To replace an existing setup, press \ui{Save} a second time when asked.
+\item[Load] With monitoring stopped, select a setup and press \ui{Load}. If it cannot be loaded, the current setup stays in place and the reason is shown.
+\item[Delete] Select a setup and press \ui{Delete} twice. This cannot be undone.
+\item[Open file] Loads a setup file from anywhere, for example one copied from another computer. Setups saved by the MATLAB build can be opened too.
+\end{description}
+Names may use letters, digits and spaces, and must start with a letter. Spaces are stored as underscores. \ui{Demo setup} returns to the simulated rig.
+
+Whatever you last worked on reopens at the next launch, whether or not you saved it under a name. Saved setups are not changed
+until you save over them.
+
+If the saved setup cannot be used, for example because it needs a driver that is not available on this computer,
+the application still starts. It loads the demo setup, tells you why, and keeps your file in \key{workspace/setups} under a name
+beginning \key{rejected\_}. To use that file, make the driver available or edit the file, then load it with \ui{Load setup > Open file}.
+
+\section{Troubleshooting}
+\begin{longtable}{@{}p{55mm}p{96mm}@{}}\toprule
+Symptom & What to check\\\midrule\endhead
+The first launch stops with an error & It needs internet access. On Debian or Ubuntu the \key{python3-venv} package may be missing. Fix that and start it again.\\
+A driver shows as unavailable & The reason is on the \ui{Compatibility} page: a library that could not be installed, or the wrong operating system.\\
+A warning at launch and the demo setup appears & The saved setup could not be used on this computer. The warning gives the reason, and your file is kept (Section~\ref{sec:setups}).\\
+A device keeps reconnecting & \ui{Devices}, \emph{Last error}. Check cable, power, address and baud rate, then run \ui{Test device} with monitoring stopped.\\
+Connected, but no data & Frame format, terminator and channel table. A device with a poll command needs the right command.\\
+Many packet errors & Delimiter or format mismatch; otherwise cabling, termination or bus load.\\
+All channels of one device report missing & The device link: those alarms are classed as communication faults.\\
+A \key{stuck} alarm on a steady signal & Raise its tolerance or lengthen its window, or remove the rule from that channel.\\
+A \key{drift} alarm during warm-up & Expected. Raise its maximum slope or leave the rule off that channel.\\
+The display is slow & See the tick times on \ui{Diagnostics}. Reduce widgets and shorten trend windows.\\
+``Stop monitoring before changing the configuration'' & Press \ui{Stop monitoring} first.\\\bottomrule
+\end{longtable}
+
+\section{Known limitations}
+\begin{itemize}
+\item All devices share one acquisition loop running at up to 20\,Hz, reading buffered data. A slow device delays the others.
+\item The application is not designed for crank-angle-resolved combustion measurement at high sample rates.
+\item Text-stream, Modbus, VISA and OPC UA timestamps are the time of arrival at the computer, not at the sensor.
+\item The built-in ISO 1585 power correction covers naturally aspirated spark-ignition engines only.
+\end{itemize}
+
+\section{Where your files are}
+Settings and run details are stored as Python code files you can open and read. Change them through the application; it loads only plain values from these files, so a file containing anything else is refused.
+
+\begin{longtable}{@{}p{50mm}p{101mm}@{}}\toprule
+Folder & Contents\\\midrule\endhead
+\key{workspace/setups} & One file per saved setup. \key{current.py} is the last working state.\\
+\key{workspace/dashboards} & Dashboards\\
+\key{workspace/device\_profiles} & Device profiles\\
+\key{workspace/runs} & Quick recordings and imports\\
+\key{workspace/experiments} & Experiments and their runs\\
+\key{workspace/exports} & Exported files and reports\\
+\key{workspace/logs} & Alarm event logs\\
+\key{config/hardware\_compatibility.py} & Compatibility matrix\\
+\key{plugins/drivers} & Hardware drivers\\\bottomrule
+\end{longtable}
+\end{document}

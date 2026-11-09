@@ -1,0 +1,18 @@
+USB & \texttt{stream} & \texttt{implemented} & any & USB devices that present a virtual COM port only. USBTMC goes through NI-VISA, NI USB DAQ through NI-DAQmx. Raw vendor USB needs a plugin or adapter. \\
+USB-to-Serial & \texttt{stream} & \texttt{loopback\_verified} & any & Same code path as RS-232, read through a pseudo-terminal. No physical adapter exercised. \\
+RS-232 & \texttt{stream} & \texttt{loopback\_verified} & any & Read through a pseudo-terminal in the test suite. No physical port exercised. \\
+RS-485 & \texttt{stream} & \texttt{implemented} & any & Requires an adapter that handles half-duplex direction. \\
+Modbus RTU & \texttt{modbus} & \texttt{implemented} & any & Register decoding is unit tested. Bus transaction not exercised. \\
+Modbus TCP & \texttt{modbus} & \texttt{loopback\_verified} & any & Read against a software Modbus TCP server in the test suite. Register decoding unit tested. \\
+CAN & \texttt{can} & \texttt{loopback\_verified} & any & Decoded from a python-can virtual bus. Listen-only by default where the interface supports it. \\
+CAN FD & \texttt{can} & \texttt{loopback\_verified} & any & Decoded from a python-can virtual bus. Listen-only by default where the interface supports it. \\
+Ethernet & \texttt{stream} & \texttt{loopback\_verified} & any & Same code path as the TCP and UDP loopback tests. Modbus TCP and OPC UA have their own rows. \\
+TCP/IP & \texttt{stream} & \texttt{loopback\_verified} & any & Socket loopback in the test suite, including split, malformed and closed connections. \\
+UDP & \texttt{stream} & \texttt{loopback\_verified} & any & Socket loopback in the test suite. \\
+NI-DAQmx & \texttt{ni\_daqmx} & \texttt{implemented} & windows, linux & Needs NI driver software too. Never executed. \\
+NI-VISA & \texttt{visa} & \texttt{implemented} & any & Uses NI-VISA when present, else PyVISA-py. Never executed. \\
+GPIB & \texttt{visa} & \texttt{implemented} & any & Through a VISA GPIB resource string. Never executed. \\
+OPC UA & \texttt{opcua} & \texttt{loopback\_verified} & any & Read against a local asyncua server in the test suite. \\
+Vendor adapter & \texttt{stream} & \texttt{loopback\_verified} & any & JSON lines verified over UDP loopback. A vendor SDK bridge in any language can emit these. Alternatively add a driver plugin. \\
+Simulation & \texttt{simulator} & \texttt{simulated} & any & Engine rig model with fault injection. \\
+\bottomrule

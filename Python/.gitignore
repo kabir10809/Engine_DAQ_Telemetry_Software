@@ -1,0 +1,9 @@
+.venv/
+workspace/
+__pycache__/
+*.pyc
+.pytest_cache/
+docs/user_guide/*.aux
+docs/user_guide/*.log
+docs/user_guide/*.out
+docs/user_guide/*.toc
