@@ -3,6 +3,11 @@
 Thanks for helping. This software watches real engine test rigs, so accuracy matters more
 than features.
 
+## Licence
+
+This project is licensed under the GNU General Public License v3.0. By contributing, you agree
+that your contribution is licensed under the same terms, and that you have the right to submit it.
+
 ## Setting up
 
 ```bash

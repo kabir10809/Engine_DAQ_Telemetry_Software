@@ -33,6 +33,9 @@ of an instrument that sends JSON over a connection.
 - After editing run `tools/update_matrix_doc.py`. Never hand-edit
   `docs/HARDWARE_COMPATIBILITY.md`.
 
+## Licence
+GNU GPL v3 (`LICENSE`). Any new dependency must have a GPL-3.0-compatible licence.
+
 ## Before finishing
 ```bash
 .venv/bin/python -m pytest tests

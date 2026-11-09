@@ -93,3 +93,13 @@ drivers against software endpoints. None of it touches physical hardware.
 - [docs/DRIVER_GUIDE.md](docs/DRIVER_GUIDE.md): writing a hardware plugin
 - [docs/FILE_FORMATS.md](docs/FILE_FORMATS.md): stored file formats
 - [CONTRIBUTING.md](CONTRIBUTING.md): how to contribute
+
+## Licence
+
+Copyright (C) 2026 Kabir
+
+This program is free software: you can redistribute it and/or modify it under the terms of the
+GNU General Public License as published by the Free Software Foundation, version 3.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without
+even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the [LICENSE](LICENSE) file for details.
